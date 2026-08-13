@@ -58,18 +58,18 @@ class ECLCalculator(RiskEngine):
         # Step 2: Calculate ECL for each loan
         for loan in self.portfolio.loans:
             # The Holy Trinity
-            pd = loan.pd
+            prob_default = loan.pd  # Renamed to avoid shadowing pandas (pd)
             lgd = loan.lgd
             ead = loan.ead
             
             # The IFRS 9 Formula
-            ecl = pd * lgd * ead
+            ecl = prob_default * lgd * ead
             total_ecl += ecl
             
             loan_level_results.append({
                 'loan_amnt': loan.loan_amnt,
                 'int_rate': loan.int_rate,
-                'pd': pd,
+                'pd': prob_default,
                 'ecl': ecl
             })
             
