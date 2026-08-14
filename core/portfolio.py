@@ -1,74 +1,56 @@
-from dataclasses import dataclass
 from typing import List, Optional
 import pandas as pd
 
-@dataclass
 class Loan:
     """
     Object-Oriented representation of a single credit facility.
-    Contains the financial metrics required for the ML model to predict PD.
+    Accepts a dynamic dictionary of features to support any ML model input.
     """
-    loan_amnt: float
-    term: float
-    int_rate: float
-    installment: float
-    emp_length: float
-    home_ownership: int      # Encoded
-    annual_inc: float
-    verification_status: int # Encoded
-    purpose: int             # Encoded
-    dti: float
-    delinq_2yrs: float
-    inq_last_6mths: float
-    open_acc: float
-    pub_rec: float
-    revol_bal: float
-    revol_util: float
-    total_acc: float
-    
-    # Risk Metrics (Calculated later by the engines)
-    pd: Optional[float] = None
-    lgd: float = 0.40 # Standard Basel assumption for unsecured retail/corporate: 40% loss
-    
+    def __init__(self, features_dict: dict, lgd: float = 0.40):
+        # We store all 60+ Kaggle columns inside this dictionary
+        self.features = features_dict
+        
+        # Risk Metrics (Calculated later by the engines)
+        self.pd: Optional[float] = None
+        self.lgd: float = lgd 
+        
     @property
     def ead(self) -> float:
-        """
-        Exposure at Default. For simple term loans, we use the total loan amount.
-        (For revolving credit lines, this would include a Credit Conversion Factor).
-        """
-        return self.loan_amnt
+        """Exposure at Default."""
+        # Safely extract loan_amnt from the dynamic features dictionary
+        return float(self.features.get('loan_amnt', 0.0))
+
+    @property
+    def loan_amnt(self) -> float:
+        """Helper property for the ECL Engine output."""
+        return float(self.features.get('loan_amnt', 0.0))
+
+    @property
+    def int_rate(self) -> float:
+        """Helper property for the ECL Engine output."""
+        return float(self.features.get('int_rate', 0.0))
 
     def to_dict(self):
-        """Converts the loan features into a dictionary for ML prediction."""
-        return {
-            'loan_amnt': self.loan_amnt, 'term': self.term, 'int_rate': self.int_rate,
-            'installment': self.installment, 'emp_length': self.emp_length,
-            'home_ownership': self.home_ownership, 'annual_inc': self.annual_inc,
-            'verification_status': self.verification_status, 'purpose': self.purpose,
-            'dti': self.dti, 'delinq_2yrs': self.delinq_2yrs,
-            'inq_last_6mths': self.inq_last_6mths, 'open_acc': self.open_acc,
-            'pub_rec': self.pub_rec, 'revol_bal': self.revol_bal,
-            'revol_util': self.revol_util, 'total_acc': self.total_acc
-        }
+        """Returns the features dictionary directly for ML prediction."""
+        return self.features
+
 
 class Portfolio:
     """
     A collection of Loan objects.
-    Provides methods to easily extract data for matrix/ML operations.
     """
-    def __init__(self, loans: List[Loan] = None):
-        self.loans = loans if loans else []
-
-    def add_loan(self, loan: Loan):
-        self.loans.append(loan)
-
-    def to_dataframe(self) -> pd.DataFrame:
-        """
-        Converts the entire portfolio into a Pandas DataFrame.
-        This is perfectly formatted to be passed directly into our XGBoost model.
-        """
-        return pd.DataFrame([loan.to_dict() for loan in self.loans])
+    def __init__(self, loans: List[Loan]):
+        self.loans = loans
 
     @property
     def total_exposure(self) -> float:
+        """Returns the sum of Exposure at Default (EAD) for all loans."""
         return sum(loan.ead for loan in self.loans)
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """
+        Converts the portfolio of Loan objects back into a pandas DataFrame.
+        This is required because Scikit-Learn/XGBoost models expect a 2D matrix/dataframe.
+        """
+        # We extract the dynamic features dictionary from every loan
+        return pd.DataFrame([loan.to_dict() for loan in self.loans])

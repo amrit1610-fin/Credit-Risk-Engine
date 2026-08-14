@@ -4,7 +4,6 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
-import joblib
 import os
 
 # Import our custom risk models
@@ -12,58 +11,27 @@ from core.portfolio import Portfolio, Loan
 from models.ecl_calculator import ECLCalculator
 from models.copula_simulation import CopulaSimulationEngine
 
-# --- MOCK ML MODEL SETUP (For seamless testing) ---
-class MockPDModel:
-    def predict_proba(self, X):
-        np.random.seed(42)
-        pd_values = np.random.uniform(0.01, 0.15, size=len(X))
-        return np.column_stack((1 - pd_values, pd_values))
-
-def setup_mock_environment():
-    """Creates dummy files if real models aren't present yet."""
-    if not os.path.exists('pd_model.pkl'):
-        joblib.dump(MockPDModel(), 'pd_model.pkl')
-        mock_features = ['loan_amnt', 'term', 'int_rate', 'installment', 'emp_length',
-                         'home_ownership', 'annual_inc', 'verification_status', 'purpose',
-                         'dti', 'delinq_2yrs', 'inq_last_6mths', 'open_acc', 'pub_rec',
-                         'revol_bal', 'revol_util', 'total_acc']
-        joblib.dump(mock_features, 'model_features.pkl')
-
-def generate_dummy_portfolio():
-    """Generates a diverse portfolio of 15 loans for visualization."""
-    np.random.seed(42)
+# --- LIVE DATA LOADER ---
+def load_live_portfolio(csv_path='./data/live_portfolio.csv'):
+    """Loads real Kaggle data into our OOP Portfolio."""
+    if not os.path.exists(csv_path):
+        # Safety fallback if the file isn't downloaded yet
+        print(f"Warning: {csv_path} not found. Returning empty portfolio.")
+        return Portfolio([])
+        
+    df = pd.read_csv(csv_path)
     loans = []
-    for _ in range(15):
-        l = Loan(
-            loan_amnt=np.random.uniform(10000, 100000),
-            term=np.random.choice([36, 60]),
-            int_rate=np.random.uniform(0.05, 0.20),
-            installment=np.random.uniform(200, 2000),
-            emp_length=np.random.randint(0, 10),
-            home_ownership=np.random.randint(0, 3),
-            annual_inc=np.random.uniform(40000, 150000),
-            verification_status=np.random.randint(0, 2),
-            purpose=np.random.randint(0, 5),
-            dti=np.random.uniform(5, 35),
-            delinq_2yrs=np.random.randint(0, 2),
-            inq_last_6mths=np.random.randint(0, 3),
-            open_acc=np.random.randint(5, 20),
-            pub_rec=0,
-            revol_bal=np.random.uniform(5000, 50000),
-            revol_util=np.random.uniform(0.1, 0.9),
-            total_acc=np.random.randint(10, 40)
-        )
-        loans.append(l)
+    # Convert every row in the CSV into a dynamic Loan object
+    for _, row in df.iterrows():
+        loans.append(Loan(features_dict=row.to_dict()))
     return Portfolio(loans)
-
-setup_mock_environment()
 
 # --- DASH APP INITIALIZATION ---
 # Using the DARKLY theme for a professional quant/trading desk look
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
 app.title = "Credit Risk & Copula Engine"
 
-# Custom CSS for the slider to fix the invisible text issue
+# Custom CSS to fix invisible text issues on dark themes
 app.index_string = '''
 <!DOCTYPE html>
 <html>
@@ -137,7 +105,7 @@ app.layout = dbc.Container([
                         color="primary", 
                         className="w-100 fw-bold mt-2"
                     )
-                ], className="bg-secondary") # Darker background for the body
+                ], className="bg-secondary") 
             ], className="mb-4 shadow-sm border-secondary"),
             
             # Exposure Summary Card
@@ -204,14 +172,18 @@ app.layout = dbc.Container([
      State("num-simulations", "value")]
 )
 def update_dashboard(n_clicks, correlation_rho, n_simulations):
-    # 1. Generate/Load Portfolio
-    portfolio = generate_dummy_portfolio()
+    # 1. Load the REAL Portfolio from Kaggle CSV
+    portfolio = load_live_portfolio('./data/live_portfolio.csv')
+    
+    if not portfolio.loans:
+        # Fallback empty state if the CSV is missing
+        return "No Data", "No Data", "No Data", "No Data", go.Figure(), go.Figure()
     
     # 2. Run Deterministic ECL Engine
     ecl_engine = ECLCalculator(
         portfolio=portfolio,
-        model_path='pd_model.pkl',
-        features_path='model_features.pkl'
+        model_path='./models/pd_model.pkl',
+        features_path='./models/model_features.pkl'
     )
     ecl_results = ecl_engine.calculate_risk()
     
@@ -249,7 +221,7 @@ def update_dashboard(n_clicks, correlation_rho, n_simulations):
     
     # Calculate y-axis limit to place annotations nicely
     hist_counts, _ = np.histogram(losses, bins=100)
-    max_count = np.max(hist_counts)
+    max_count = np.max(hist_counts) if len(hist_counts) > 0 else 100
     
     # Add VaR Line (Staggered lower)
     fig_hist.add_vline(x=var_99, line_dash="dash", line_color="orange")
@@ -262,7 +234,7 @@ def update_dashboard(n_clicks, correlation_rho, n_simulations):
         arrowwidth=2,
         arrowcolor="orange",
         ax=-40,
-        ay=-20,
+        ay=-30,
         font=dict(color="orange", size=12, weight="bold")
     )
 
