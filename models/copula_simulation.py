@@ -41,7 +41,7 @@ class CopulaSimulationEngine(RiskEngine):
         # If PD is 5%, norm.ppf(0.05) gives the z-score cut-off (-1.645)
         default_thresholds = norm.ppf(pds)
 
-        # 3. Perform Cholesky Decomposition on the correlation matrix
+        # 3. Cholesky Decomposition on the correlation matrix
         # This allows us to generate correlated random numbers
         try:
             L = np.linalg.cholesky(self.correlation_matrix)
@@ -54,13 +54,12 @@ class CopulaSimulationEngine(RiskEngine):
         # Shape: (num_simulations, num_loans)
         Z = np.random.standard_normal((self.num_simulations, num_loans))
 
-        # 5. Apply Cholesky matrix to create correlated shocks (X)
+        # 5. Cholesky matrix to create correlated shocks (X)
         # X = Z * L^T
         correlated_shocks = Z.dot(L.T)
 
-        # 6. Evaluate Defaults
+        # 6. Evaluating Defaults
         # A loan defaults if its shock is LESS THAN its threshold
-        # default_events is a boolean matrix of shape (num_simulations, num_loans)
         default_events = correlated_shocks < default_thresholds
 
         # 7. Calculate Portfolio Losses for each simulation
@@ -68,14 +67,14 @@ class CopulaSimulationEngine(RiskEngine):
         # We sum across the columns (loans) to get the total portfolio loss per simulation
         portfolio_losses = np.sum(default_events * lgds * eads, axis=1)
 
-        # 8. Sort the losses from smallest to largest to find the tail
+        # 8. Sorting the losses from smallest to largest to find the tail
         sorted_losses = np.sort(portfolio_losses)
 
-        # Calculate 99% Value at Risk (VaR)
+        # Calculating 99% Value at Risk (VaR)
         var_99_index = int(self.num_simulations * 0.99)
         var_99 = sorted_losses[var_99_index]
 
-        # Calculate 97.5% Expected Shortfall (ES / CVaR)
+        # Calculating 97.5% Expected Shortfall (ES / CVaR)
         # Average of all losses worse than the 97.5% VaR threshold
         var_975_index = int(self.num_simulations * 0.975)
         expected_shortfall = np.mean(sorted_losses[var_975_index:])
