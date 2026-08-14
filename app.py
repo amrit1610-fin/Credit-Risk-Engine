@@ -13,7 +13,7 @@ from models.copula_simulation import CopulaSimulationEngine
 
 # --- LIVE DATA LOADER ---
 def load_live_portfolio(csv_path='./data/live_portfolio.csv'):
-    """Loads real Kaggle data into our OOP Portfolio."""
+    """Loads real Kaggle data into our Portfolio."""
     if not os.path.exists(csv_path):
         # Safety fallback if the file isn't downloaded yet
         print(f"Warning: {csv_path} not found. Returning empty portfolio.")
