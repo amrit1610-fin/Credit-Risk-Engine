@@ -83,9 +83,35 @@ def run_test():
     print("--- Loan Level Detail ---")
     print(results['loan_level_data'].to_string(index=False))
 
+    # ---------------------------------------------------------
+    # --- 5. Run Copula Simulation (Tail Risk)
+    # ---------------------------------------------------------
+    print("\n--- 5. Running Copula Simulation (Tail Risk) ---")
+    from models.copula_simulation import CopulaSimulationEngine
+    
+    # Create a simple 2x2 correlation matrix for our 2 loans
+    # Let's assume they are moderately correlated (0.4)
+    correlation_matrix = np.array([
+        [1.0, 0.4],
+        [0.4, 1.0]
+    ])
+    
+    sim_engine = CopulaSimulationEngine(
+        portfolio=portfolio,
+        correlation_matrix=correlation_matrix,
+        num_simulations=10000
+    )
+    
+    sim_results = sim_engine.calculate_risk()
+    
+    print("\n--- 6. Portfolio Tail Risk Metrics ---")
+    print(f"Expected Loss (Baseline): ${sim_results['expected_loss']:,.2f}")
+    print(f"99% Value at Risk (VaR):  ${sim_results['var_99']:,.2f}")
+    print(f"97.5% Expected Shortfall: ${sim_results['expected_shortfall']:,.2f}")
+    print(f"Max Simulated Loss:       ${sim_results['max_simulated_loss']:,.2f}\n")
+
     # Cleanup the dummy files so we don't clutter your workspace
     os.remove('dummy_pd_model.pkl')
     os.remove('dummy_features.pkl')
-
 if __name__ == "__main__":
     run_test()
