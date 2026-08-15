@@ -6,9 +6,12 @@ An institutional-grade, object-oriented Credit Risk system built in Python. This
 
 </div>
 
+
 ### 🚀 Live Interactive Dashboard
 Experience the engine directly in your browser: [Launch Dash Application](https://credit-risk-engine-jmi9.onrender.com/)
 (Note: Hosted on Render's free tier. The server may take 45-60 seconds to "wake up" upon initial load).
+
+
 
 ### 🌟 Key Features
 **Machine Learning Risk Parameters**: Utilizes XGBoost models to predict Probability of Default (PD) and Loss Given Default (LGD) based on borrower financial metrics.
@@ -23,13 +26,18 @@ Experience the engine directly in your browser: [Launch Dash Application](https:
 
 **Reactive UI**: A professional, "Dark Glass" interactive dashboard built with Plotly Dash, featuring risk concentration scatter plots and dynamic loss histograms.
 
+
+
 ### 🧠 The Mathematical & Data Architecture
 
 *1. The Machine Learning Pipelines*
 
 To prevent Data Leakage (a common pitfall in credit risk modeling), the training data pipeline uses a strict "Y-Split" architecture:
+
     1. PD Model (Classification): Trained on the entire portfolio to predict the binary default event, explicitly masking post-default data (like recoveries).
+
     2. LGD Model (Regression): Trained only on defaulted loans to predict the continuous recovery rate severity.
+
 
 *2. The Copula Simulation Engine*
 While individual expected losses are deterministic, portfolio risk is driven by correlation.
@@ -37,6 +45,8 @@ The engine maps ML-predicted PDs to standard normal Z-score thresholds.
 A covariance matrix is constructed based on sectoral overlap.
 Geometric Brownian Motion (GBM) / standard normal shocks are generated and multiplied by the Cholesky factor of the correlation matrix.
 If a facility's correlated shock breaches its specific Z-score threshold, a default event is registered for that simulation path.
+
+
 
 ### 📂 Project Structure
 
@@ -63,27 +73,32 @@ Credit-Risk-Engine/
 └── requirements.txt               # Deployment dependencies
 ```
 
+
 ### ⚙️ Installation & Local Usage
 To run this engine locally on your machine, follow these steps:
 1. Clone the repository
+
 git clone https://github.com//amrit1610-fin/Credit-Risk-Engine
 cd Credit-Risk-Engine
 
 
 2. Install dependencies It is recommended to use a Python virtual environment.
+
 pip install -r requirements.txt
 
 
 3. Run the CLI Engine To output the portfolio metrics and simulation results directly to your terminal:
+
 python main.py
 
 
 4. Launch the Web Dashboard To boot up the interactive Dash application locally:
+
 python app.py
 
 
-**👨‍💻 Author**
+#### 👨‍💻 Author
 
-Amritanshu
+**Amritanshu**
 
 *Quantitative Finance Enthusiast | Data Scientist*
