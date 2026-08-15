@@ -66,7 +66,7 @@ Credit-Risk-Engine/
 ### ⚙️ Installation & Local Usage
 To run this engine locally on your machine, follow these steps:
 1. Clone the repository
-git clone https://github.com/[YOUR_GITHUB_USERNAME]/Credit-Risk-Engine.git
+git clone https://github.com//amrit1610-fin/Credit-Risk-Engine
 cd Credit-Risk-Engine
 
 
@@ -82,8 +82,6 @@ python main.py
 python app.py
 
 
-Navigate to http://127.0.0.1:8050/ in your browser.
-👨‍💻 Author
-Amrit
-Quantitative Finance Enthusiast | Software Developer
-GitHub Profile
+**👨‍💻 Author**
+Amritanshu
+Quantitative Finance Enthusiast | Data Scientist
