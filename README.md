@@ -83,5 +83,7 @@ python app.py
 
 
 **👨‍💻 Author**
+
 Amritanshu
-Quantitative Finance Enthusiast | Data Scientist
+
+*Quantitative Finance Enthusiast | Data Scientist*
