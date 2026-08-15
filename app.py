@@ -13,7 +13,7 @@ from models.copula_simulation import CopulaSimulationEngine
 
 # --- LIVE DATA LOADER ---
 def load_live_portfolio(csv_path='./data/live_portfolio.csv'):
-    """Loads real Kaggle data into our Portfolio."""
+    """Loads real Kaggle data into our OOP Portfolio."""
     if not os.path.exists(csv_path):
         # Safety fallback if the file isn't downloaded yet
         print(f"Warning: {csv_path} not found. Returning empty portfolio.")
@@ -27,11 +27,10 @@ def load_live_portfolio(csv_path='./data/live_portfolio.csv'):
     return Portfolio(loans)
 
 # --- DASH APP INITIALIZATION ---
-# Using the DARKLY theme for a professional quant/trading desk look
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
 app.title = "Credit Risk & Copula Engine"
 
-# Custom CSS to fix invisible text issues on dark themes
+# Custom CSS for dark theme visibility
 app.index_string = '''
 <!DOCTYPE html>
 <html>
@@ -41,17 +40,12 @@ app.index_string = '''
         {%favicon%}
         {%css%}
         <style>
-            /* Force the slider marks (text) to be white */
-            .rc-slider-mark-text {
-                color: white !important;
-            }
-            /* Make dropdown text visible */
-            .Select-value-label {
-                color: #333 !important;
-            }
-            .Select-placeholder {
-                color: #888 !important;
-            }
+            /* Force slider marks to be white */
+            .rc-slider-mark-text { color: white !important; }
+            
+            /* Dropdown text visibility */
+            .Select-value-label { color: #333 !important; }
+            .Select-placeholder { color: #888 !important; }
         </style>
     </head>
     <body>
@@ -67,13 +61,11 @@ app.index_string = '''
 
 # --- UI LAYOUT ---
 app.layout = dbc.Container([
-    # Header
     dbc.Row([
-        dbc.Col(html.H2("Quantitative Credit Risk Engine", className="text-primary mt-3 mb-4"), width=12)
+        dbc.Col(html.H2("Quantitative Credit Risk Engine", className="mt-3 mb-4", style={'color': '#20B2AA'}), width=12)
     ]),
 
     dbc.Row([
-        # SIDEBAR: Controls
         dbc.Col([
             dbc.Card([
                 dbc.CardHeader("Stress Test Parameters", className="fw-bold text-white bg-dark border-bottom"),
@@ -82,8 +74,22 @@ app.layout = dbc.Container([
                     dcc.Slider(
                         id='correlation-slider',
                         min=0.0, max=0.9, step=0.05, value=0.3,
-                        marks={0: '0.0', 0.5: '0.5', 0.9: '0.9'},
-                        className="mb-4"
+                        marks={
+                            0: {'label': '0.0', 'style': {'color': 'white'}}, 
+                            0.5: {'label': '0.5', 'style': {'color': 'white'}}, 
+                            0.9: {'label': '0.9', 'style': {'color': 'white'}}
+                        },
+                        # Native styling applied directly to the tooltip
+                        tooltip={
+                            "placement": "bottom", 
+                            "always_visible": False,
+                            "style": {
+                                "backgroundColor": "white",
+                                "color": "black",
+                                "fontWeight": "bold"
+                            }
+                        },
+                        className="mb-3"
                     ),
                     
                     html.Label("Monte Carlo Simulations", className="text-white fw-bold mb-2 mt-2"),
@@ -96,7 +102,7 @@ app.layout = dbc.Container([
                         ],
                         value=10000,
                         clearable=False,
-                        className="mb-4"
+                        className="mb-4 text-dark"
                     ),
                     
                     dbc.Button(
@@ -108,7 +114,6 @@ app.layout = dbc.Container([
                 ], className="bg-secondary") 
             ], className="mb-4 shadow-sm border-secondary"),
             
-            # Exposure Summary Card
             dbc.Card([
                 dbc.CardBody([
                     html.H6("Total Portfolio Exposure", className="text-light"),
@@ -118,9 +123,7 @@ app.layout = dbc.Container([
             
         ], width=3),
 
-        # MAIN CONTENT: Metrics and Charts
         dbc.Col([
-            # Top Metrics Row
             dbc.Row([
                 dbc.Col(dbc.Card(dbc.CardBody([
                     html.H6("Expected Credit Loss (ECL)", className="text-info"),
@@ -138,9 +141,7 @@ app.layout = dbc.Container([
                 ]), className="shadow-sm"), width=4),
             ], className="mb-4"),
 
-            # Charts Row
             dbc.Row([
-                # Loss Distribution Histogram (The Copula Output)
                 dbc.Col(dbc.Card([
                     dbc.CardHeader("Portfolio Loss Distribution (Monte Carlo)", className="fw-bold"),
                     dbc.CardBody(dcc.Graph(id="loss-distribution-chart"))
@@ -148,18 +149,16 @@ app.layout = dbc.Container([
             ], className="mb-4"),
             
             dbc.Row([
-                # Individual Loan ECL Breakdown
                 dbc.Col(dbc.Card([
                     dbc.CardHeader("Loan-Level Expected Loss", className="fw-bold"),
                     dbc.CardBody(dcc.Graph(id="loan-ecl-chart"))
                 ], className="shadow-sm"), width=12)
             ])
-            
         ], width=9)
     ])
 ], fluid=True, className="p-4")
 
-# --- CALLBACKS (The Reactive Logic) ---
+# --- CALLBACKS ---
 @app.callback(
     [Output("total-exposure-text", "children"),
      Output("ecl-text", "children"),
@@ -172,26 +171,43 @@ app.layout = dbc.Container([
      State("num-simulations", "value")]
 )
 def update_dashboard(n_clicks, correlation_rho, n_simulations):
-    # 1. Load the REAL Portfolio from Kaggle CSV
+    # 1. Load the REAL Portfolio
+    # Make sure this points to the correct folder path!
     portfolio = load_live_portfolio('./data/live_portfolio.csv')
     
     if not portfolio.loans:
-        # Fallback empty state if the CSV is missing
         return "No Data", "No Data", "No Data", "No Data", go.Figure(), go.Figure()
     
-    # 2. Run Deterministic ECL Engine
+    # 2. Run Deterministic ECL Engine with both models
     ecl_engine = ECLCalculator(
         portfolio=portfolio,
-        model_path='./models/pd_model_assets/model.pkl',
-        features_path='./models/pd_model_assets/features.pkl'
+        pd_model_path='models/pd_model_assets/model.pkl',
+        pd_features_path='models/pd_model_assets/features.pkl',
+        lgd_model_path='models/lgd_model_assets/model.pkl',
+        lgd_features_path='models/lgd_model_assets/features.pkl'
     )
     ecl_results = ecl_engine.calculate_risk()
     
-    # 3. Run Stochastic Copula Engine
+    # 3. Run Stochastic Copula Engine with SECTOR CORRELATIONS
     num_loans = len(portfolio.loans)
-    # Build a uniform correlation matrix based on user slider input
-    corr_matrix = np.full((num_loans, num_loans), correlation_rho)
-    np.fill_diagonal(corr_matrix, 1.0)
+    
+    sector_correlations = {
+        'Tech': {'Tech': 0.8, 'Healthcare': 0.3, 'Consumer': 0.4, 'Finance': 0.5},
+        'Healthcare': {'Tech': 0.3, 'Healthcare': 0.7, 'Consumer': 0.2, 'Finance': 0.4},
+        'Consumer': {'Tech': 0.4, 'Healthcare': 0.2, 'Consumer': 0.6, 'Finance': 0.6},
+        'Finance': {'Tech': 0.5, 'Healthcare': 0.4, 'Consumer': 0.6, 'Finance': 0.9}
+    }
+
+    corr_matrix = np.zeros((num_loans, num_loans))
+    for i in range(num_loans):
+        for j in range(num_loans):
+            if i == j:
+                corr_matrix[i, j] = 1.0
+            else:
+                s_i = portfolio.loans[i].sector
+                s_j = portfolio.loans[j].sector
+                # Blend user baseline with sector specific correlation
+                corr_matrix[i, j] = (correlation_rho + sector_correlations[s_i][s_j]) / 2
     
     copula_engine = CopulaSimulationEngine(
         portfolio=portfolio,
@@ -206,90 +222,56 @@ def update_dashboard(n_clicks, correlation_rho, n_simulations):
     var_str = f"${tail_results['var_99']:,.0f}"
     es_str = f"${tail_results['expected_shortfall']:,.0f}"
     
-    # --- Build Histogram (Loss Distribution) ---
+    # --- Build Histogram ---
     losses = tail_results['simulated_loss_distribution']
     var_99 = tail_results['var_99']
     es_975 = tail_results['expected_shortfall']
     
     fig_hist = go.Figure()
-    fig_hist.add_trace(go.Histogram(
-        x=losses, 
-        nbinsx=100, 
-        marker_color='#1f77b4',
-        name='Simulated Losses'
-    ))
+    fig_hist.add_trace(go.Histogram(x=losses, nbinsx=100, marker_color='#1f77b4', name='Simulated Losses'))
     
-    # Calculate y-axis limit to place annotations nicely
     hist_counts, _ = np.histogram(losses, bins=100)
     max_count = np.max(hist_counts) if len(hist_counts) > 0 else 100
     
-    # Add VaR Line (Staggered lower)
+    # Staggered Annotations
     fig_hist.add_vline(x=var_99, line_dash="dash", line_color="orange")
     fig_hist.add_annotation(
-        x=var_99, y=max_count * 0.8,
-        text="99% VaR",
-        showarrow=True,
-        arrowhead=2,
-        arrowsize=1,
-        arrowwidth=2,
-        arrowcolor="orange",
-        ax=-40,
-        ay=-30,
+        x=var_99, y=max_count * 0.8, text="99% VaR", showarrow=True,
+        arrowhead=2, arrowcolor="orange", ax=-40, ay=-30,
         font=dict(color="orange", size=12, weight="bold")
     )
 
-    # Add ES Line (Staggered higher)
     fig_hist.add_vline(x=es_975, line_dash="dash", line_color="red")
     fig_hist.add_annotation(
-        x=es_975, y=max_count * 0.95,
-        text="97.5% ES",
-        showarrow=True,
-        arrowhead=2,
-        arrowsize=1,
-        arrowwidth=2,
-        arrowcolor="red",
-        ax=40,
-        ay=-30,
+        x=es_975, y=max_count * 0.95, text="97.5% ES", showarrow=True,
+        arrowhead=2, arrowcolor="red", ax=40, ay=-30,
         font=dict(color="red", size=12, weight="bold")
     )
     
     fig_hist.update_layout(
-        template="plotly_dark",
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=20, r=20, t=30, b=20),
-        xaxis_title="Portfolio Loss ($)",
-        yaxis_title="Frequency (Simulations)",
-        font=dict(color="white")
+        template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=20, r=20, t=30, b=20), xaxis_title="Portfolio Loss ($)",
+        yaxis_title="Frequency (Simulations)", font=dict(color="white")
     )
     
-    # --- Build Bar Chart (Loan-Level ECL) ---
+    # --- Build Bar Chart ---
     df_loans = ecl_results['loan_level_data']
-    # Give them simple IDs for the X-axis
-    df_loans['Loan ID'] = [f"Loan {i+1}" for i in range(len(df_loans))]
+    df_loans['Loan ID'] = [f"Loan {i+1} ({portfolio.loans[i].sector})" for i in range(len(df_loans))]
     
     fig_bar = go.Figure()
     fig_bar.add_trace(go.Bar(
-        x=df_loans['Loan ID'],
-        y=df_loans['ecl'],
-        marker_color='#17becf',
+        x=df_loans['Loan ID'], y=df_loans['ecl'], marker_color='#17becf',
         text=df_loans['ecl'].apply(lambda x: f"${x:,.0f}"),
-        textposition='auto',
-        textfont=dict(color="white")
+        textposition='auto', textfont=dict(color="white")
     ))
     
     fig_bar.update_layout(
-        template="plotly_dark",
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=20, r=20, t=30, b=20),
-        xaxis_title="Loan Facility",
-        yaxis_title="Expected Credit Loss ($)",
-        font=dict(color="white")
+        template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=20, r=20, t=30, b=20), xaxis_title="Loan Facility",
+        yaxis_title="Expected Credit Loss ($)", font=dict(color="white")
     )
 
     return total_exposure_str, total_ecl_str, var_str, es_str, fig_hist, fig_bar
 
 if __name__ == '__main__':
-    # Run the server on port 8050
     app.run(debug=True, port=8050)
