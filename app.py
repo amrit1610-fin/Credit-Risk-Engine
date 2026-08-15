@@ -136,7 +136,7 @@ app.layout = dbc.Container([
     # Page Header
     dbc.Row([
         dbc.Col(
-            html.H2("Quantitative Risk Engine", 
+            html.H2("Credit Risk Engine", 
                     style={'color': '#f3f4f6', 'fontWeight': '700', 'paddingTop': '20px', 'paddingBottom': '10px'}), 
             width=12)
     ]),
