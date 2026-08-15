@@ -1,5 +1,6 @@
 from typing import List, Optional
 import pandas as pd
+import random
 
 class Loan:
     """
@@ -33,8 +34,7 @@ class Loan:
     @property
     def sector(self) -> str:
         """Extracts or assigns a sector for correlation modeling."""
-        import random
-        # If 'purpose' isn't in your features, we assign a random sector for the Copula math
+        # If 'purpose' isn't in our features, we assign a random sector for the Copula math
         purposes = ['Tech', 'Healthcare', 'Consumer', 'Finance']
         purpose = self.features.get('purpose', random.choice(purposes))
         

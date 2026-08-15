@@ -7,40 +7,52 @@ from models.base import RiskEngine
 class ECLCalculator(RiskEngine):
     """
     Deterministic engine that calculates Expected Credit Loss (ECL)
-    under the IFRS 9 / CECL framework.
+    under the IFRS 9 / CECL framework using dynamic PD and LGD models.
     """
-    def __init__(self, portfolio: Portfolio, model_path: str, features_path: str):
+    def __init__(self, portfolio: Portfolio, 
+                 pd_model_path: str, pd_features_path: str, 
+                 lgd_model_path: str, lgd_features_path: str
+                ):
         super().__init__(portfolio)
         
-        # Load the pre-trained XGBoost model and the exact feature list
-        print(f"Loading PD Model from {model_path}...")
-        self.pd_model = joblib.load(model_path)
-        self.model_features = joblib.load(features_path)
+        # Load the pre-trained XGBoost models and the exact feature lists
+        print(f"Loading PD Model from {pd_model_path}...")
+        self.pd_model = joblib.load(pd_model_path)
+        self.pd_features = joblib.load(pd_features_path)
 
-    def _predict_pd(self):
+        print(f"Loading LGD Model from {lgd_model_path}...")
+        self.lgd_model = joblib.load(lgd_model_path)
+        self.lgd_features = joblib.load(lgd_features_path)
+
+    def _predict_risk_parameters(self):
         """
         Takes the portfolio, converts it to a dataframe, ensures the columns 
-        perfectly match what XGBoost expects, and predicts the Probability of Default.
+        perfectly match what XGBoost expects, and predicts PD and LGD.
         """
         # 1. Convert our OOP Portfolio into a matrix (Pandas DataFrame)
         df = self.portfolio.to_dataframe()
         
-        # 2. Safety Check: If our current portfolio is missing columns the model needs,
-        # we fill them with 0 to prevent the model from crashing. 
-        # (This happens if a categorical variable like 'State_WY' wasn't in our current batch)
-        for col in self.model_features:
-            if col not in df.columns:
-                df[col] = 0
-                
-        # 3. Reorder the columns to perfectly match the training data
-        X = df[self.model_features]
+        # --- PD PREDICTION ---
+        pd_df = df.copy()
+        for col in self.pd_features:
+            if col not in pd_df.columns:
+                pd_df[col] = 0
+        X_pd = pd_df[self.pd_features]
+        probabilities = self.pd_model.predict_proba(X_pd)[:, 1]
+
+        # --- LGD PREDICTION ---
+        lgd_df = df.copy()
+        for col in self.lgd_features:
+            if col not in lgd_df.columns:
+                lgd_df[col] = 0
+        X_lgd = lgd_df[self.lgd_features]
+        # Predict and cap between 0 and 1
+        lgd_predictions = np.clip(self.lgd_model.predict(X_lgd), 0.0, 1.0)
         
-        # 4. Predict probabilities. predict_proba returns [prob_0, prob_1]. We want prob_1 (Default)
-        probabilities = self.pd_model.predict_proba(X)[:, 1]
-        
-        # 5. Write the probabilities back into our OOP Loan objects
+        # Write the predictions back into our OOP Loan objects
         for i, loan in enumerate(self.portfolio.loans):
             loan.pd = probabilities[i]
+            loan.lgd = lgd_predictions[i]
 
     def calculate_risk(self) -> dict:
         """
@@ -49,8 +61,8 @@ class ECLCalculator(RiskEngine):
         if not self.portfolio.loans:
             return {"error": "Portfolio is empty."}
 
-        # Step 1: Run the ML model to populate loan.pd
-        self._predict_pd()
+        # Step 1: Run the ML models to populate loan.pd and loan.lgd
+        self._predict_risk_parameters()
         
         total_ecl = 0.0
         loan_level_results = []
@@ -58,7 +70,7 @@ class ECLCalculator(RiskEngine):
         # Step 2: Calculate ECL for each loan
         for loan in self.portfolio.loans:
             # The Holy Trinity
-            prob_default = loan.pd  # Renamed to avoid shadowing pandas (pd)
+            prob_default = loan.pd  
             lgd = loan.lgd
             ead = loan.ead
             
@@ -70,6 +82,7 @@ class ECLCalculator(RiskEngine):
                 'loan_amnt': loan.loan_amnt,
                 'int_rate': loan.int_rate,
                 'pd': prob_default,
+                'lgd': lgd,
                 'ecl': ecl
             })
             
