@@ -182,8 +182,8 @@ def update_dashboard(n_clicks, correlation_rho, n_simulations):
     # 2. Run Deterministic ECL Engine
     ecl_engine = ECLCalculator(
         portfolio=portfolio,
-        model_path='./models/pd_model.pkl',
-        features_path='./models/model_features.pkl'
+        model_path='./models/pd_model_assets/pd_model.pkl',
+        features_path='./models/pd_model_assets/model_features.pkl'
     )
     ecl_results = ecl_engine.calculate_risk()
     
