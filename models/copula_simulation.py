@@ -51,7 +51,6 @@ class CopulaSimulationEngine(RiskEngine):
             L = np.eye(num_loans)
 
         # 4. Generate independent random normal shocks (Z) for all simulations
-        # Shape: (num_simulations, num_loans)
         Z = np.random.standard_normal((self.num_simulations, num_loans))
 
         # 5. Cholesky matrix to create correlated shocks (X)
